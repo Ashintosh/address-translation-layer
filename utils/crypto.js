@@ -5,18 +5,6 @@ class Crypto {
     static #IV_SIZE = 16;
     static #SALT_SIZE = 16;
     static #KEY_SIZE = 32;
-    static #DEFAULT_PEPPER = '0o9QpbMkeap2nm8q';
-
-    /*
-    constructor() {
-        this.IV_SIZE   = 16;
-        this.SALT_SIZE = 16;
-        this.KEY_SIZE  = 32;
-
-        this.DEFAULT_PEPPER = '0o9QpbMkeap2nm8q';
-    }
-
-     */
 
     static randomString(size= 16) {
         const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -35,38 +23,22 @@ class Crypto {
             .digest(encoding);
     }
 
-    static async argonHash(
-        plainText,
-        pepper      = null,
-        algorithm   = 'argon2id',
-        timeCost   = 10,
-        memoryCost = 2**16,
-        parallelism= 4,
-        hashLength = 64,
-        saltLength = 16
-    ) {
+    static async argonHash(plainText, options= undefined) {
+        if (typeof options['algorithm'] === 'undefined') {
+            options['algorithm'] = 'argon2id';
+        }
 
         const argonTypes = {
-            'argon2d': argon2.argon2d,
-            'argon2i': argon2.argon2i,
-            'argon2id': argon2.argon2id
+            argon2d: argon2.argon2d,
+            argon2i: argon2.argon2i,
+            argon2id: argon2.argon2id
         };
 
-        return await argon2.hash(plainText, {
-            type: argonTypes[algorithm], // default: 'argon2id'
-            timeCost: timeCost,          // default: 4
-            memoryCost: memoryCost,      // default: 2**6 (65536)
-            parallelism: parallelism,    // default: 4
-            hashLength: hashLength,      // default: 50
-            saltLength: saltLength,      // default: 16
-            secret: Buffer.from(pepper)  // default: NULL
-        });
+        return await argon2.hash(plainText, options);
     }
 
-    static async verifyArgonHash(plainText, cipherText, pepper= null) {
-        return await argon2.verify(cipherText, plainText, {
-            secret: Buffer.from(pepper)
-        });
+    static async verifyArgonHash(plainText, cipherText, options= undefined) {
+        return await argon2.verify(cipherText, plainText, options);
     }
 
     static encrypt(plainText, cipherKey, format= false, algorithm= 'aes-256-gcm', inputEncoding= 'utf8', outputEncoding= 'base64')  {
