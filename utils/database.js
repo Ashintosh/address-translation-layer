@@ -21,14 +21,14 @@ class Database {
         });
 
         this.pool.on('error', (err, client) => {
-            console.error('Error:', err);
+            console.error('DB Pool Error:', err);
             process.exit(-1);
         });
     }
 
     async execute(queryString, queryValues= null) {
         const client = await this.pool.connect()
-            .catch(err => { console.error('Connection Error:', err) });
+            .catch(err => { console.error('DB Pool Error:', err) });
 
         let res;
 
@@ -38,12 +38,12 @@ class Database {
             for (const query of queryString) {
                 res.push(
                     await client?.query(query, queryValues)
-                        .catch(err => { console.error('Query Error:', err); })
+                        .catch(err => { console.error('DB Query Error:', err); })
                 );
             }
         } else {
             res = await client?.query(queryString, queryValues)
-                .catch(err => { console.error('Query Error:', err);  });
+                .catch(err => { console.error('DB Query Error:', err);  });
         }
 
         client?.release()

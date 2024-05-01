@@ -23,21 +23,15 @@ class Crypto {
             .digest(encoding);
     }
 
-    static async argonHash(plainText, options= undefined) {
-        if (typeof options['algorithm'] === 'undefined') {
-            options['algorithm'] = 'argon2id';
-        }
-
-        const argonTypes = {
-            argon2d: argon2.argon2d,
-            argon2i: argon2.argon2i,
-            argon2id: argon2.argon2id
-        };
-
+    static async argonHash(plainText, options= {type: argon2.argon2id}) {
         return await argon2.hash(plainText, options);
     }
 
     static async verifyArgonHash(plainText, cipherText, options= undefined) {
+        if (!(plainText && cipherText)) {
+            return false;
+        }
+
         return await argon2.verify(cipherText, plainText, options);
     }
 
@@ -77,7 +71,7 @@ class Crypto {
         const salt = cipherData.SALT;
 
         const cipherText = cipherData.CIPHERTEXT;
-        const key = crypto.pbkdf2Sync(cipherKey, salt, 60000, Crypto.KEY_SIZE, 'sha256');
+        const key = crypto.pbkdf2Sync(cipherKey, salt, 60000, Crypto.#KEY_SIZE, 'sha256');
 
         const decipher = crypto.createDecipheriv(algorithm, key, iv);
         decipher.setAuthTag(tag);
@@ -108,7 +102,7 @@ class Crypto {
 
         const ivBuffer = cipherBuffers.subarray(0, Crypto.#IV_SIZE);
         const cipherTextBuffer = cipherBuffers.subarray(
-            Crypto.IV_SIZE, cipherBuffers.length - (tagLength || 0) - Crypto.#SALT_SIZE
+            Crypto.#IV_SIZE, cipherBuffers.length - (tagLength || 0) - Crypto.#SALT_SIZE
         );
         const saltBuffer = cipherBuffers.subarray(
             cipherBuffers.length - (tagLength || 0) - Crypto.#SALT_SIZE, cipherBuffers.length - (tagLength || 0)

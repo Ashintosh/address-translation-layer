@@ -29,7 +29,6 @@ router.post('/', async function(req, res, next) {
 
   const postRes = await database.execute(query, queryValues);
 
-  await database.close();
 });
 
 // Get user info from database
@@ -62,7 +61,6 @@ router.get('/', async function(req, res, next) {
     return;
   }
 
-  await database.close();
 });
 
 module.exports = router;

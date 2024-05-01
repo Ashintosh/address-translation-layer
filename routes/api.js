@@ -6,28 +6,20 @@ const Crypto = require('../utils/crypto');
 
 // Check if valid ID and access key was provided
 router.use(async function (req, res, next) {
-   if (typeof req.get('authorization') === 'undefined') {
-       return res.status(401).json({
-           result: false,
-           status: 'INV_AUTH',
-           message: 'Unauthorized'
-       });
-   }
+    let authenticated = false;
 
-   const projectID = req.body['projectID'].toString();
-   const accessKey = req.get('Authorization');
+    const projectID = req.body['projectID'];
+    const accessKey = req.get('Authorization');
 
-   const database = new Database();
+    const database = req.app.get('database');
+    const query = "SELECT key FROM htl_translations.api_keys WHERE name = $1";
+    const queryValues = [projectID];
+    const postRes = await database.execute(query, queryValues);
 
-   const query = "SELECT name, key FROM htl_translations.api_keys WHERE name = $1";
-   const queryValues = [projectID];
-   const postRes = await database.execute(query, queryValues);
+    const accessKeyHash = (postRes.rowCount > 0) ? postRes.rows[0]['key'] : undefined;
+    authenticated = (await Crypto.verifyArgonHash(accessKey, accessKeyHash));
 
-   // This absolutely disgusting line of code needs to go
-   // TODO: Refactor database util to handle errors more gracefully. Throw invalid auth response instead of TypeError when projectID is not valid.
-   const dbAccessKey = (typeof postRes.rows[0]['key'] === 'undefined') ? undefined : postRes.rows[0]['key'];
-
-    if (typeof dbAccessKey === 'undefined') {
+    if (!authenticated) {
         return res.status(401).json({
             result: false,
             status: 'INV_AUTH',
@@ -35,22 +27,7 @@ router.use(async function (req, res, next) {
         });
     }
 
-   if (! await Crypto.verifyArgonHash(accessKey, dbAccessKey)
-       .then(function (hash) { return hash })) {
-       return res.status(401).json({
-           result: false,
-           status: 'INV_AUTH',
-           message: 'Unauthorized'
-       });
-   } else {
-       return res.status(200).json({
-           result: true,
-           status: 'AUTHED',
-           message: 'Valid auth'
-       });
-   }
-
-   next();
+    next();
 });
 
 router.get('/', function(req, res, next) {
@@ -58,11 +35,51 @@ router.get('/', function(req, res, next) {
 });
 
 // Add identifier to translation db
-router.post('/translation', function(req, res, next) {
-    const accessKey = req.headers['x-access-key'];
-    const userId = req.headers['x-user-id'];
+router.post('/translation', async function(req, res, next) {
+    const identifier = req.body['identifier'];
+    const address = req.body['address'];
+    const key =  Crypto.hash(req.get('Authorization') + identifier, 'sha256');
+    const projectID = req.body['projectID'];
 
-    
+    const identifierHash = Crypto.hash(identifier, 'sha256');
+    const encryptedAddress = Crypto.encrypt(address, key, true);
+
+    let addressData = {};
+    addressData[projectID] = encryptedAddress;
+
+    const database = req.app.get('database');
+    const query = "INSERT INTO htl_translations.identifiers (identifier, address_data) VALUES ($1, $2)";
+    const queryValues = [identifierHash, addressData];
+    const postRes = await database.execute(query, queryValues);
+
+    // TODO: Return status to client
+});
+
+// Pull identifier from translation db
+router.get('/translation', async function(req, res, next) {
+    const identifier = req.body['identifier'];
+    const key =  Crypto.hash(req.get('Authorization') + identifier, 'sha256');
+    const projectID = req.body['projectID'];
+    const identifierHash = Crypto.hash(identifier, 'sha256');
+
+    const database = req.app.get('database');
+    const query = "SELECT address_data FROM htl_translations.identifiers WHERE identifier = $1";
+    const queryValues = [identifierHash];
+    const postRes = await database.execute(query, queryValues);
+
+    const dbAddressData = (postRes.rowCount > 0) ? postRes.rows[0]['address_data'] : undefined;
+
+    if (!dbAddressData) {
+        return res.status(200).json({
+            result: false,
+            status: 'INV_ID',
+            message: 'Invalid identifier.'
+        });
+    }
+
+    const addressData = await Crypto.decrypt(dbAddressData[projectID], key);
+
+    // TODO: Return status to client
 });
 
 
