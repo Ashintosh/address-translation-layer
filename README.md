@@ -18,7 +18,7 @@ This repository contains a RESTful API built with Express.js for managing transl
 
 1. Clone the repository:
    ```bash
-   git clone <repository_url>
+   git clone https://github.com/Ashintosh/address-translation-layer.git
    ```
 
 2. Install dependencies:
