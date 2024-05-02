@@ -11,6 +11,15 @@ const {
 
 class Database {
 
+    /**
+     * Creates database connection pool with provided host credentials
+     * (Defaults to ENV variables if no credentials provided on object declaration)
+     * @param {string} [host]
+     * @param {string} [port]
+     * @param {string} [database]
+     * @param {string} [user]
+     * @param {string} [password]
+     */
     constructor(host= POSTGRES_HOST, port= POSTGRES_PORT, database= POSTGRES_DB, user= POSTGRES_USER, password= POSTGRES_PASSWORD) {
         this.pool = new Pool({
             host:     host,
@@ -26,6 +35,12 @@ class Database {
         });
     }
 
+    /**
+     * Execute Postgresql query with optional values
+     * @param {string} queryString
+     * @param {array|null} [queryValues=null]
+     * @return {Promise<*[]>}
+     */
     async execute(queryString, queryValues= null) {
         const client = await this.pool.connect()
             .catch(err => { console.error('DB Pool Error:', err) });
@@ -50,6 +65,9 @@ class Database {
         return res;
     }
 
+    /**
+     * Close database client pool
+     */
     async close() {
         console.log('Closing db connection pool...');
         await this.pool.end();

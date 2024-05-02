@@ -5,7 +5,7 @@ const Crypto = require('../utils/crypto');
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  res.render('index', { title: 'address-translation-api' });
+  res.render('index', { title: 'address-translation-layer' });
 });
 
 module.exports = router;
