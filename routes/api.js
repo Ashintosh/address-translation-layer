@@ -21,7 +21,7 @@ router.use(async function (req, res, next) {
 
     const accessKeyHash = (dbGetAccessKeyResult[0].rowCount > 0) ? dbGetAccessKeyResult[0].rows[0]['key'] : undefined;
     if (!await Crypto.verifyArgonHash(req.get('Authorization'), accessKeyHash)) {
-        return formatStatus(res, 401, false, 'INV_AUTH', 'Unauthorized');
+        return formatStatus(res, 401, false, 'INVALID_AUTH', 'Unauthorized');
     }
 
     next(); // Continue
@@ -87,12 +87,7 @@ router.get('/translation', async function(req, res, next) {
         return formatStatus(res, 500, false, 'ERR', 'Internal Server Error');
     }
 
-    const dbAddressData = (dbGetAddressResult[0].rowCount > 0) ? dbGetAddressResult[0].rows[0]['address_data'] : undefined;
-    if (!dbAddressData) {
-        return formatStatus(res, 200, false, 'INV_ID', 'Invalid identifier');
-    }
-
-    const addressData = Crypto.decrypt(dbAddressData[req.body['projectID']], key);
+    const addressData = Crypto.decrypt(dbGetAddressResult[0].rows[0]['address_data'][req.body['projectID']], key);
     return formatStatus(res, 200, true, addressData);
 });
 
