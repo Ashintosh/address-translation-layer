@@ -24,8 +24,8 @@ class Crypto {
 
     /**
      * Creates has from provided plaintext
-     * @param plainText
-     * @param [algorithm='sha256']
+     * @param {string} plainText
+     * @param {string} [algorithm='sha256']
      * @param [encoding='hex']
      * @return {string}
      */
@@ -37,40 +37,85 @@ class Crypto {
 
     /**
      * Creates argon hash from provided plaintext
-     * @param plainText
-     * @param [options={type: argon2.argon2id}]
+     * @param {string} plainText
+     * @param {Object} [options]
+     * @param {number} [options.type=argon2.argon2id]
+     * @param {Buffer} [options.secret=undefined]
+     * @param {number} [options.memoryCost=65536]
+     * @param {number} [options.hashLength=32]
+     * @param {number} [options.parallelism=4]
+     * @param {Buffer} [options.associatedData=undefined]
      * @return {Promise<string>}
      */
-    static async argonHash(plainText, options= {type: argon2.argon2id}) {
-        return await argon2.hash(plainText, options);
+    static async argonHash(plainText, options= {}) {
+        const defaultOptions = {
+            type: argon2.argon2id,
+            secret: undefined,
+            memoryCost: 2 ** 16,
+            hashLength: 32,
+            parallelism: 4,
+            associatedData: undefined
+        };
+
+        const {
+            type = defaultOptions.type,
+            secret = defaultOptions.secret,
+            memoryCost = defaultOptions.memoryCost,
+            hashLength = defaultOptions.hashLength,
+            parallelism = defaultOptions.parallelism,
+            associatedData = defaultOptions.associatedData
+        } = options;
+
+        return await argon2.hash(plainText, {
+            type, secret, memoryCost, hashLength, parallelism, associatedData
+        });
     }
 
     /**
      * Verify argon hash from provided plaintext and ciphertext
-     * @param plainText
-     * @param cipherText
-     * @param options
+     * @param {string} plainText
+     * @param {string} cipherText
+     * @param {Object} [options]
+     * @param {Buffer} [options.secret=undefined]
      * @return {Promise<boolean>}
      */
-    static async verifyArgonHash(plainText, cipherText, options= undefined) {
+    static async verifyArgonHash(plainText, cipherText, options= {}) {
         if (!(plainText && cipherText)) {
             return false;
         }
 
-        return await argon2.verify(cipherText, plainText, options);
+        const defaultOptions = { secret: undefined };
+        const { secret = defaultOptions.secret } = options;
+
+        return await argon2.verify(cipherText, plainText, secret);
     }
 
     /**
      * Encrypt provided string using provided key
-     * @param plainText
-     * @param cipherKey
-     * @param {boolean} format
-     * @param algorithm
-     * @param inputEncoding
-     * @param outputEncoding
+     * @param {string} plainText
+     * @param {string} cipherKey
+     * @param {Object} [options]
+     * @param {boolean} [options.format=false]
+     * @param {string} [options.algorithm='aes-256-gcm']
+     * @param {string} [options.inputEncoding='utf8']
+     * @param {string} [options.outputEncoding='base64']
      * @return {{SALT: string, TAG: string, CIPHERTEXT: string, IV: string}|string}
      */
-    static encrypt(plainText, cipherKey, format= false, algorithm= 'aes-256-gcm', inputEncoding= 'utf8', outputEncoding= 'base64')  {
+    static encrypt(plainText, cipherKey, options= {})  {
+        const defaultOptions = {
+            format: false,
+            algorithm: 'aes-256-gcm',
+            inputEncoding: 'utf8',
+            outputEncoding: 'base64'
+        };
+
+        const {
+            format = defaultOptions.format,
+            algorithm = defaultOptions.algorithm,
+            inputEncoding = defaultOptions.inputEncoding,
+            outputEncoding = defaultOptions.outputEncoding,
+        } = options;
+
         const iv = crypto.randomBytes(Crypto.#IV_SIZE);
         const salt = crypto.randomBytes(Crypto.#SALT_SIZE);
         const key = crypto.pbkdf2Sync(cipherKey, salt, 60000, Crypto.#KEY_SIZE, 'sha256');
@@ -94,14 +139,27 @@ class Crypto {
 
     /**
      * Decrypt provided string using provided key
-     * @param formattedCipherText
-     * @param cipherKey
-     * @param algorithm
-     * @param inputEncoding
-     * @param outputEncoding
+     * @param {string} formattedCipherText
+     * @param {string} cipherKey
+     * @param {Object} [options]
+     * @param {string} [options.algorithm='aes-256-gcm']
+     * @param {string} [options.inputEncoding='base64']
+     * @param {string} [options.outputEncoding='utf8']
      * @return {string}
      */
-    static decrypt(formattedCipherText, cipherKey, algorithm= 'aes-256-gcm', inputEncoding= 'base64', outputEncoding= 'utf8') {
+    static decrypt(formattedCipherText, cipherKey, options= {}) {
+        const defaultOptions = {
+            algorithm: 'aes-256-gcm',
+            inputEncoding: 'base64',
+            outputEncoding: 'utf8'
+        };
+
+        const {
+            algorithm = defaultOptions.algorithm,
+            inputEncoding = defaultOptions.inputEncoding,
+            outputEncoding = defaultOptions.outputEncoding,
+        } = options;
+
         let cipherData, tag = null;
 
         if (algorithm === 'aes-256-gcm') {
@@ -128,14 +186,14 @@ class Crypto {
 
     /**
      * Format cipher data into one base64 string
-     * @param ivBuffer
-     * @param cipherTextBuffer
-     * @param saltBuffer
-     * @param tagBuffer
-     * @param encoding
+     * @param {Buffer} ivBuffer
+     * @param {Buffer} cipherTextBuffer
+     * @param {Buffer} saltBuffer
+     * @param {false|Buffer} [tagBuffer=false]
+     * @param [encoding='base64']
      * @return {string}
      */
-    static #formatCipher(ivBuffer, cipherTextBuffer, saltBuffer, tagBuffer= false | '', encoding= 'base64') {
+    static #formatCipher(ivBuffer, cipherTextBuffer, saltBuffer, tagBuffer= false, encoding= 'base64') {
         let cipherBuffers = [
             Buffer.from(ivBuffer),
             Buffer.from(cipherTextBuffer, encoding),
@@ -151,9 +209,9 @@ class Crypto {
 
     /**
      * Unformat cipher data from one base64 string
-     * @param cipherFormat
-     * @param hasTag
-     * @param encoding
+     * @param {string} cipherFormat
+     * @param {boolean} [hasTag=false]
+     * @param [encoding='base64']
      * @return {{SALT: Buffer, CIPHERTEXT: Buffer, IV: Buffer}}
      */
     static #unformatCipher(cipherFormat, hasTag= false, encoding= 'base64') {

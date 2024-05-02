@@ -23,7 +23,7 @@ app.set('port', port);
 var server = http.createServer(app);
 
 /**
- * Create global database server.
+ * Create global database connection object.
  */
 
 var db = connectDatabase();
@@ -37,6 +37,10 @@ server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
 server.on('exit', onExit)
+
+/**
+ * Call onExit() if closed sing SIGINT or SIGTERM
+ */
 
 process.on('SIGTERM', onExit);
 process.on('SIGINT', onExit)
@@ -110,6 +114,10 @@ function onListening() {
   debug('Listening on ' + bind);
   console.log(`Server started on port ${addr.port}.`);
 }
+
+/**
+ * Event listener for HTTP server "exit" event.
+ */
 
 async function onExit() {
   console.log('\nStopping server...');

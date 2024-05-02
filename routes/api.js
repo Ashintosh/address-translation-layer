@@ -1,49 +1,63 @@
 const express = require('express');
 const router = express.Router();
 
-const Database = require('../utils/database');
 const Crypto = require('../utils/crypto');
 
 /**
- * Checks if valid ID and access key was provided
+ * Checks provided access key against database for validation. Prevents unauthorized access.
  */
 router.use(async function (req, res, next) {
+    if (!req.body?.projectID) return formatStatus(res, 400, false, 'ERR', 'Bad Request');
+
     try {
-        var dbGetAccessKeyResult = await req.app.get('database').execute(
-            "SELECT key FROM htl_translations.api_keys WHERE name = $1",
-            [req.body['projectID']]
-        );
+        var dbGetAccessKeyResult = await req.app.get('database').execute([{
+            query: "SELECT key FROM htl_translations.api_keys WHERE name = $1",
+            values: [req.body['projectID']]
+        }]);
     } catch (Err) {
+        console.log("Error: ", Err);
         return formatStatus(res, 500, false, 'ERR', 'Internal Server Error');
     }
 
-    const accessKeyHash = (dbGetAccessKeyResult.rowCount > 0) ? dbGetAccessKeyResult.rows[0]['key'] : undefined;
-
+    const accessKeyHash = (dbGetAccessKeyResult[0].rowCount > 0) ? dbGetAccessKeyResult[0].rows[0]['key'] : undefined;
     if (!await Crypto.verifyArgonHash(req.get('Authorization'), accessKeyHash)) {
         return formatStatus(res, 401, false, 'INV_AUTH', 'Unauthorized');
     }
 
-    next();
+    next(); // Continue
 });
 
 /**
  * Adds identifier and address to translation database
  */
 router.post('/translation', async function(req, res, next) {
-    const key =  Crypto.hash(req.get('Authorization') + req.body['projectID'], 'sha256');
+    const requiredConditions = [
+        req.body?.identifier,
+        req.body?.address
+    ];
 
+    if (!requiredConditions.every(condition => condition)) {
+        return formatStatus(res, 400, false, 'ERR', 'Bad Request');
+    }
+
+    const key =  Crypto.hash(req.get('Authorization') + req.body['projectID'], 'sha256');
     const identifierHash = Crypto.hash(req.body['identifier'], 'sha256');
-    const encryptedAddress = Crypto.encrypt(req.body['address'], key, true);
+    const encryptedAddress = Crypto.encrypt(req.body['address'], key, {format: true});
 
     let addressData = {};
     addressData[req.body['projectID']] = encryptedAddress;
 
     try {
-        await req.app.get('database').execute(
-            "INSERT INTO htl_translations.identifiers (identifier, address_data) VALUES ($1, $2)",
-            [identifierHash, addressData]
-        );
+        const conflictResult = await req.app.get('database').execute([{
+            query: "INSERT INTO htl_translations.identifiers (identifier, address_data) VALUES ($1, $2) ON CONFLICT (identifier) DO NOTHING",
+            values: [identifierHash, addressData]
+        }]);
+
+        if (conflictResult[0].rowCount < 1) {
+            return formatStatus(res, 200, false, 'DUPLICATE', 'Identifier already exists in database');
+        }
     } catch (Err) {
+        console.log("Error: ", Err);
         return formatStatus(res, 500, false, 'ERR', 'Internal Server Error');
     }
 
@@ -54,21 +68,26 @@ router.post('/translation', async function(req, res, next) {
  * Gets address from translation database
  */
 router.get('/translation', async function(req, res, next) {
+    if (!req.body?.identifier) return formatStatus(res, 400, false, 'ERR', 'Bad Request');
+
     const key =  Crypto.hash(req.get('Authorization') + req.body['projectID'], 'sha256');
     const identifierHash = Crypto.hash(req.body['identifier'], 'sha256');
 
     try {
-        var dbGetAddressResult = await req.app.get('database').execute(
-            "SELECT address_data FROM htl_translations.identifiers WHERE identifier = $1",
-            [identifierHash]
-        );
+        var dbGetAddressResult = await req.app.get('database').execute([{
+            query: "SELECT address_data FROM htl_translations.identifiers WHERE identifier = $1",
+            values: [identifierHash]
+        }]);
+
+        if (dbGetAddressResult[0].rowCount < 1) {
+            return formatStatus(res, 200, false, 'INVALID', 'Identifier not found in database');
+        }
     } catch (Err) {
+        console.log("Error: ", Err);
         return formatStatus(res, 500, false, 'ERR', 'Internal Server Error');
     }
 
-
-    const dbAddressData = (dbGetAddressResult.rowCount > 0) ? dbGetAddressResult.rows[0]['address_data'] : undefined;
-
+    const dbAddressData = (dbGetAddressResult[0].rowCount > 0) ? dbGetAddressResult[0].rows[0]['address_data'] : undefined;
     if (!dbAddressData) {
         return formatStatus(res, 200, false, 'INV_ID', 'Invalid identifier');
     }
@@ -82,15 +101,25 @@ router.get('/translation', async function(req, res, next) {
  * Updates identifier in translation database
  */
 router.put('/translation/identifier', async function(req, res, next) {
+    const requiredConditions = [
+        req.body?.identifier,
+        req.body?.new_identifier
+    ];
+
+    if (!requiredConditions.every(condition => condition)) {
+        return formatStatus(res, 400, false, 'ERR', 'Bad Request');
+    }
+
     const currentIdentifierHash = Crypto.hash(req.body['identifier'], 'sha256');
     const newIdentifierHash = Crypto.hash(req.body['new_identifier'], 'sha256');
 
     try {
-        await req.app.get('database').execute(
-            "UPDATE htl_translations.identifiers SET identifier = $1 WHERE identifier = $2",
-            [newIdentifierHash, currentIdentifierHash]
-        );
+        await req.app.get('database').execute([{
+            query: "UPDATE htl_translations.identifiers SET identifier = $1 WHERE identifier = $2",
+            values: [newIdentifierHash, currentIdentifierHash]
+        }]);
     } catch (Err) {
+        console.log("Error: ", Err);
         return formatStatus(res, 500, false, 'ERR', 'Internal Server Error');
     }
 
@@ -101,14 +130,17 @@ router.put('/translation/identifier', async function(req, res, next) {
  * Deletes identifier in translation database
  */
 router.delete('/translation/identifier', async function(req, res, next) {
+    if (!req.body?.identifier) return formatStatus(res, 400, false, 'ERR', 'Bad Request');
+
     const identifierHash = Crypto.hash(req.body['identifier'], 'sha256');
 
     try {
-        await req.app.get('database').execute(
-            "DELETE FROM htl_translations.identifiers WHERE identifier = $1",
-            [identifierHash]
-        );
+        await req.app.get('database').execute([{
+            query: "DELETE FROM htl_translations.identifiers WHERE identifier = $1",
+            values: [identifierHash]
+        }]);
     } catch (Err) {
+        console.log("Error: ", Err);
         return formatStatus(res, 500, false, 'ERR', 'Internal Server Error');
     }
 
@@ -117,19 +149,29 @@ router.delete('/translation/identifier', async function(req, res, next) {
 
 
 /**
- * Adds or updates existing address in translation database
+ * Updates existing address in translation database
  */
 router.post('/translation/address', async function(req, res, next) {
+    const requiredConditions = [
+        req.body?.identifier,
+        req.body?.address
+    ];
+
+    if (!requiredConditions.every(condition => condition)) {
+        return formatStatus(res, 400, false, 'ERR', 'Bad Request');
+    }
+
     const key =  Crypto.hash(req.get('Authorization') + req.body['projectID'], 'sha256');
     const identifierHash = Crypto.hash(req.body['identifier'], 'sha256');
-    const encryptedAddress = Crypto.encrypt(req.body['address'], key, true);
+    const encryptedAddress = Crypto.encrypt(req.body['address'], key, {format: true});
 
     try {
-        await req.app.get('database').execute(
-            "UPDATE htl_translations.identifiers SET address_data[$1] = $2 WHERE identifier = $3",
-            [req.body['projectID'], `"${encryptedAddress}"`, identifierHash]
-        );
+        await req.app.get('database').execute([{
+            query: "UPDATE htl_translations.identifiers SET address_data[$1] = $2 WHERE identifier = $3",
+            values: [req.body['projectID'], `"${encryptedAddress}"`, identifierHash]
+        }]);
     } catch (Err) {
+        console.log("Error: ", Err);
         return formatStatus(res, 500, false, 'ERR', 'Internal Server Error');
     }
 
@@ -143,11 +185,12 @@ router.delete('/translation/address', async function(req, res, next) {
     const identifierHash = Crypto.hash(req.body['identifier'], 'sha256');
 
     try {
-        await req.app.get('database').execute(
-            "UPDATE htl_translations.identifiers SET address_data = address_data - $1 WHERE identifier = $2",
-            [req.body['projectID'], identifierHash]
-        );
+        await req.app.get('database').execute([{
+            query: "UPDATE htl_translations.identifiers SET address_data = address_data - $1 WHERE identifier = $2",
+            values: [req.body['projectID'], identifierHash]
+        }]);
     } catch (Err) {
+        console.log("Error: ", Err);
         return formatStatus(res, 500, false, 'ERR', 'Internal Server Error');
     }
 

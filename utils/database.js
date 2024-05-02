@@ -37,28 +37,19 @@ class Database {
 
     /**
      * Execute Postgresql query with optional values
-     * @param {string} queryString
-     * @param {array|null} [queryValues=null]
+     * @param {Array<{query: string, values: array|undefined}>} queryData
      * @return {Promise<*[]>}
      */
-    async execute(queryString, queryValues= null) {
+    async execute(queryData) {
         const client = await this.pool.connect()
-            .catch(err => { console.error('DB Pool Error:', err) });
 
-        let res;
+        let res = [];
+        for (const {query, values} of queryData) {
+            const queryValues = values || [];
+            res.push(
+                await client?.query(query, queryValues)
 
-        // Execute multiple query strings if an array is provided
-        if (Array.isArray(queryString)) {
-            res = [];
-            for (const query of queryString) {
-                res.push(
-                    await client?.query(query, queryValues)
-                        .catch(err => { console.error('DB Query Error:', err); })
-                );
-            }
-        } else {
-            res = await client?.query(queryString, queryValues)
-                .catch(err => { console.error('DB Query Error:', err);  });
+            );
         }
 
         client?.release()

@@ -119,7 +119,7 @@ Access key should be provided using the HTTP Authentication header.
 
 - **POST /translation/address**
 
-  Adds or updates an address associated with an identifier in the translation database.
+  Updates an address associated with an identifier in the translation database.
 
   Request Body:
   ```http

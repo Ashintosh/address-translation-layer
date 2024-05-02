@@ -1,9 +1,6 @@
 const express = require('express');
 const router = express.Router();
 
-const Database = require('../utils/database');
-const Crypto = require('../utils/crypto');
-
 /* GET users listing. */
 router.get('/', function(req, res, next) {
   res.send('Respond with a resource');
