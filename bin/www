@@ -7,6 +7,7 @@
 var app = require('../app');
 var debug = require('debug')('address-translation-layer:server');
 var http = require('http');
+var database = require('../utils/database');
 
 /**
  * Get port from environment and store in Express.
@@ -22,6 +23,13 @@ app.set('port', port);
 var server = http.createServer(app);
 
 /**
+ * Create global database server.
+ */
+
+var db = connectDatabase();
+app.set('database', db);
+
+/**
  * Listen on provided port, on all network interfaces.
  */
 
@@ -29,6 +37,9 @@ server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
 server.on('exit', onExit)
+
+process.on('SIGTERM', onExit);
+process.on('SIGINT', onExit)
 
 /**
  * Normalize a port into a number, string, or false.
@@ -49,6 +60,15 @@ function normalizePort(val) {
 
   return false;
 }
+
+/**
+ * Create connection to database.
+ */
+
+function connectDatabase() {
+  return new database();
+}
+
 
 /**
  * Event listener for HTTP server "error" event.
@@ -91,6 +111,8 @@ function onListening() {
   console.log(`Server started on port ${addr.port}.`);
 }
 
-function onExit() {
-  console.log('Stopping server...');
+async function onExit() {
+  console.log('\nStopping server...');
+  await db.close();
+  process.exit(0);
 }

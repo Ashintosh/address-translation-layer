@@ -1,13 +1,10 @@
 create table identifiers
 (
-    id              integer not null
-        constraint user_id_pk
+    id           bigserial
+        constraint id_pk
             primary key,
-    identifier      text    not null,
-    identifier_salt text    not null,
-    address_data    json    not null,
-    password        text    not null,
-    password_salt   text    not null
+    identifier   text  not null,
+    address_data jsonb not null
 );
 
 alter table identifiers

@@ -2,16 +2,10 @@ doctype html
 html(lang='en')
     head
         title Create Account
-        script(type='text/javascript').
-            const foo = true;
-            let bar = function() {};
-            if (foo) {
-                bar(1 + 5)
-            }
     body
         h1 Create account
         #container.col
-            form(action='http://127.0.0.1/users/create' method='post')
+            form(action='/users/create' method='post')
                 label Email:
                 input(type='email' name='email')
                 br

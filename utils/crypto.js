@@ -5,19 +5,12 @@ class Crypto {
     static #IV_SIZE = 16;
     static #SALT_SIZE = 16;
     static #KEY_SIZE = 32;
-    static #DEFAULT_PEPPER = '0o9QpbMkeap2nm8q';
 
-    /*
-    constructor() {
-        this.IV_SIZE   = 16;
-        this.SALT_SIZE = 16;
-        this.KEY_SIZE  = 32;
-
-        this.DEFAULT_PEPPER = '0o9QpbMkeap2nm8q';
-    }
-
+    /**
+     * Generate a random string using the crypto.randomInt method
+     * @param {number} [size=16]
+     * @returns {string}
      */
-
     static randomString(size= 16) {
         const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = String();
@@ -29,46 +22,54 @@ class Crypto {
         return result;
     }
 
+    /**
+     * Creates has from provided plaintext
+     * @param plainText
+     * @param [algorithm='sha256']
+     * @param [encoding='hex']
+     * @return {string}
+     */
     static hash(plainText, algorithm= 'sha256', encoding= 'hex') {
         return crypto.createHash(algorithm)
             .update(plainText)
             .digest(encoding);
     }
 
-    static async argonHash(
-        plainText,
-        pepper      = null,
-        algorithm   = 'argon2id',
-        timeCost   = 10,
-        memoryCost = 2**16,
-        parallelism= 4,
-        hashLength = 64,
-        saltLength = 16
-    ) {
-
-        const argonTypes = {
-            'argon2d': argon2.argon2d,
-            'argon2i': argon2.argon2i,
-            'argon2id': argon2.argon2id
-        };
-
-        return await argon2.hash(plainText, {
-            type: argonTypes[algorithm], // default: 'argon2id'
-            timeCost: timeCost,          // default: 4
-            memoryCost: memoryCost,      // default: 2**6 (65536)
-            parallelism: parallelism,    // default: 4
-            hashLength: hashLength,      // default: 50
-            saltLength: saltLength,      // default: 16
-            secret: Buffer.from(pepper)  // default: NULL
-        });
+    /**
+     * Creates argon hash from provided plaintext
+     * @param plainText
+     * @param [options={type: argon2.argon2id}]
+     * @return {Promise<string>}
+     */
+    static async argonHash(plainText, options= {type: argon2.argon2id}) {
+        return await argon2.hash(plainText, options);
     }
 
-    static async verifyArgonHash(plainText, cipherText, pepper= null) {
-        return await argon2.verify(cipherText, plainText, {
-            secret: Buffer.from(pepper)
-        });
+    /**
+     * Verify argon hash from provided plaintext and ciphertext
+     * @param plainText
+     * @param cipherText
+     * @param options
+     * @return {Promise<boolean>}
+     */
+    static async verifyArgonHash(plainText, cipherText, options= undefined) {
+        if (!(plainText && cipherText)) {
+            return false;
+        }
+
+        return await argon2.verify(cipherText, plainText, options);
     }
 
+    /**
+     * Encrypt provided string using provided key
+     * @param plainText
+     * @param cipherKey
+     * @param {boolean} format
+     * @param algorithm
+     * @param inputEncoding
+     * @param outputEncoding
+     * @return {{SALT: string, TAG: string, CIPHERTEXT: string, IV: string}|string}
+     */
     static encrypt(plainText, cipherKey, format= false, algorithm= 'aes-256-gcm', inputEncoding= 'utf8', outputEncoding= 'base64')  {
         const iv = crypto.randomBytes(Crypto.#IV_SIZE);
         const salt = crypto.randomBytes(Crypto.#SALT_SIZE);
@@ -91,7 +92,16 @@ class Crypto {
         };
     }
 
-    static async decrypt(formattedCipherText, cipherKey, algorithm= 'aes-256-gcm', inputEncoding= 'base64', outputEncoding= 'utf8') {
+    /**
+     * Decrypt provided string using provided key
+     * @param formattedCipherText
+     * @param cipherKey
+     * @param algorithm
+     * @param inputEncoding
+     * @param outputEncoding
+     * @return {string}
+     */
+    static decrypt(formattedCipherText, cipherKey, algorithm= 'aes-256-gcm', inputEncoding= 'base64', outputEncoding= 'utf8') {
         let cipherData, tag = null;
 
         if (algorithm === 'aes-256-gcm') {
@@ -105,7 +115,7 @@ class Crypto {
         const salt = cipherData.SALT;
 
         const cipherText = cipherData.CIPHERTEXT;
-        const key = crypto.pbkdf2Sync(cipherKey, salt, 60000, Crypto.KEY_SIZE, 'sha256');
+        const key = crypto.pbkdf2Sync(cipherKey, salt, 60000, Crypto.#KEY_SIZE, 'sha256');
 
         const decipher = crypto.createDecipheriv(algorithm, key, iv);
         decipher.setAuthTag(tag);
@@ -113,9 +123,18 @@ class Crypto {
         let plainText = decipher.update(cipherText, inputEncoding, outputEncoding);
         plainText += decipher.final(outputEncoding);
 
-        return plainText;
+        return plainText.toString();
     }
 
+    /**
+     * Format cipher data into one base64 string
+     * @param ivBuffer
+     * @param cipherTextBuffer
+     * @param saltBuffer
+     * @param tagBuffer
+     * @param encoding
+     * @return {string}
+     */
     static #formatCipher(ivBuffer, cipherTextBuffer, saltBuffer, tagBuffer= false | '', encoding= 'base64') {
         let cipherBuffers = [
             Buffer.from(ivBuffer),
@@ -130,13 +149,20 @@ class Crypto {
         return Buffer.concat(cipherBuffers).toString(encoding);
     }
 
+    /**
+     * Unformat cipher data from one base64 string
+     * @param cipherFormat
+     * @param hasTag
+     * @param encoding
+     * @return {{SALT: Buffer, CIPHERTEXT: Buffer, IV: Buffer}}
+     */
     static #unformatCipher(cipherFormat, hasTag= false, encoding= 'base64') {
         const cipherBuffers = Buffer.from(cipherFormat, encoding);
         const tagLength = 16;
 
         const ivBuffer = cipherBuffers.subarray(0, Crypto.#IV_SIZE);
         const cipherTextBuffer = cipherBuffers.subarray(
-            Crypto.IV_SIZE, cipherBuffers.length - (tagLength || 0) - Crypto.#SALT_SIZE
+            Crypto.#IV_SIZE, cipherBuffers.length - (tagLength || 0) - Crypto.#SALT_SIZE
         );
         const saltBuffer = cipherBuffers.subarray(
             cipherBuffers.length - (tagLength || 0) - Crypto.#SALT_SIZE, cipherBuffers.length - (tagLength || 0)
