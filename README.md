@@ -79,7 +79,7 @@ Access key should be provided using the HTTP Authentication header.
 
   Request Body:
   ```http
-  GET https://localhost:51058/api/translaion
+  GET https://localhost:51058/api/translation
   Content-Type: application/json
   Authorization: api-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
   {
@@ -94,7 +94,7 @@ Access key should be provided using the HTTP Authentication header.
 
   Request Body:
   ```http
-  PUT https://localhost:51058/api/translaion/identifier
+  PUT https://localhost:51058/api/translation/identifier
   Content-Type: application/json
   Authorization: api-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
   {
@@ -109,7 +109,7 @@ Access key should be provided using the HTTP Authentication header.
 
   Request Body:
   ```http
-  DELETE https://localhost:51058/api/translaion/identifier
+  DELETE https://localhost:51058/api/translation/identifier
   Content-Type: application/json
   Authorization: api-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
   {
@@ -123,7 +123,7 @@ Access key should be provided using the HTTP Authentication header.
 
   Request Body:
   ```http
-  POST https://localhost:51058/api/translaion/address
+  POST https://localhost:51058/api/translation/address
   Content-Type: application/json
   Authorization: api-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
   {
@@ -139,7 +139,7 @@ Access key should be provided using the HTTP Authentication header.
 
   Request Body:
   ```http
-  DELETE https://localhost:51058/api/translaion/address
+  DELETE https://localhost:51058/api/translation/address
   Content-Type: application/json
   Authorization: api-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
   {
