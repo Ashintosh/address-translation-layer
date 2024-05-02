@@ -146,7 +146,7 @@ router.delete('/translation/identifier', async function(req, res, next) {
 /**
  * Updates existing address in translation database
  */
-router.post('/translation/address', async function(req, res, next) {
+router.put('/translation/address', async function(req, res, next) {
     const requiredConditions = [
         req.body?.identifier,
         req.body?.address

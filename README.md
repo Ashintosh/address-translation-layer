@@ -117,13 +117,13 @@ Access key should be provided using the HTTP Authentication header.
   }
   ```
 
-- **POST /translation/address**
+- **PUT /translation/address**
 
   Updates an address associated with an identifier in the translation database.
 
   Request Body:
   ```http
-  POST https://localhost:51058/api/translation/address
+  PUT https://localhost:51058/api/translation/address
   Content-Type: application/json
   Authorization: api-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
   {

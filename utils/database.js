@@ -31,7 +31,7 @@ class Database {
 
         this.pool.on('error', (err, client) => {
             console.error('DB Pool Error:', err);
-            process.exit(-1);
+            // process.exit(-1);
         });
     }
 
@@ -46,10 +46,7 @@ class Database {
         let res = [];
         for (const {query, values} of queryData) {
             const queryValues = values || [];
-            res.push(
-                await client?.query(query, queryValues)
-
-            );
+            res.push(await client?.query(query, queryValues));
         }
 
         client?.release()
