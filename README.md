@@ -4,6 +4,12 @@ This repository contains a RESTful API built with Express.js for managing transl
 
 ## Getting Started
 
+### Left To Do
+
+- Add better error handling instead of just throwing 500 code
+- Add a way to create project accounts and generate access keys
+- Look for a way to add salt to identifier hash to improve resilience to rainbow table attacks without having to validate hash of each row in database 
+
 ### Prerequisites
 
 - Node.js installed on your machine
